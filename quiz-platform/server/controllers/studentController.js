@@ -9,13 +9,14 @@ const loginStudent = async (req, res) => {
     if (!uid) return res.status(400).json({ success: false, message: 'UID is required' });
 
     const uidUpper = uid.trim().toUpperCase();
+    const trimmedName = name ? name.trim() : '';
     let student = await Student.findOne({ uid: uidUpper });
 
     if (!student) {
-      student = new Student({ uid: uidUpper, name: name || '' });
+      student = new Student({ uid: uidUpper, name: trimmedName });
       await student.save();
-    } else if (name && !student.name) {
-      student.name = name;
+    } else if (trimmedName && !student.name) {
+      student.name = trimmedName;
       await student.save();
     }
 

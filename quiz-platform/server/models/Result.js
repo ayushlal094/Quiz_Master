@@ -54,5 +54,7 @@ const ResultSchema = new mongoose.Schema(
 
 // Prevent duplicate attempts (one attempt per student per quiz)
 ResultSchema.index({ studentUid: 1, quizId: 1 }, { unique: true });
+ResultSchema.index({ quizId: 1, score: -1 });
+ResultSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model('Result', ResultSchema);

@@ -58,6 +58,9 @@ const TeacherDashboard = ({ onNavigate }) => {
         <div>
           <div className="page-title">Welcome back, {currentUser.fullName} 👋</div>
           <div className="page-subtitle">{currentUser.subjectName} · Teacher Dashboard</div>
+          <div className="text-muted text-sm" style={{ marginTop: 6 }}>
+            Teacher ID: <span className="font-mono">{currentUser.teacherId}</span>
+          </div>
         </div>
         <button className="btn btn-primary" onClick={() => onNavigate('create-quiz')}>
           + Create New Quiz

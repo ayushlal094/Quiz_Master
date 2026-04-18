@@ -1,12 +1,17 @@
 import axios from 'axios';
 
+const API_TIMEOUT_MS = parseInt(process.env.REACT_APP_API_TIMEOUT_MS || '10000', 10);
+
 const API = axios.create({
   baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000/api',
   headers: { 'Content-Type': 'application/json' },
+  timeout: API_TIMEOUT_MS,
 });
 
 // Teacher APIs
 export const registerTeacher = (data) => API.post('/teachers/register', data);
+export const claimTeacherId = (data) => API.post('/teachers/claim-id', data);
+export const loginTeacher = (data) => API.post('/teachers/login', data);
 export const getAllTeachers = () => API.get('/teachers');
 export const getTeacherDashboard = (teacherId) => API.get(`/teachers/${teacherId}/dashboard`);
 

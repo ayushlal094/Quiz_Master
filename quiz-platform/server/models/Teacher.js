@@ -1,11 +1,17 @@
 const mongoose = require('mongoose');
-const { v4: uuidv4 } = require('uuid');
+
+const normalizeTeacherIdentityPart = (value) =>
+  value
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
 
 const TeacherSchema = new mongoose.Schema(
   {
     teacherId: {
       type: String,
-      default: () => uuidv4(),
+      required: [true, 'Teacher ID is required'],
+      trim: true,
       unique: true,
     },
     fullName: {
@@ -18,8 +24,24 @@ const TeacherSchema = new mongoose.Schema(
       required: [true, 'Subject name is required'],
       trim: true,
     },
+    identityKey: {
+      type: String,
+      trim: true,
+    },
   },
   { timestamps: true }
 );
+
+TeacherSchema.pre('validate', function teacherIdentityPreValidate(next) {
+  if (this.fullName && this.subjectName) {
+    this.identityKey = [
+      normalizeTeacherIdentityPart(this.fullName),
+      normalizeTeacherIdentityPart(this.subjectName),
+    ].join('::');
+  }
+  next();
+});
+
+TeacherSchema.index({ identityKey: 1 });
 
 module.exports = mongoose.model('Teacher', TeacherSchema);

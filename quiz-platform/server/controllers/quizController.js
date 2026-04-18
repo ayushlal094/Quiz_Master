@@ -29,7 +29,7 @@ const createQuiz = async (req, res) => {
 
     const quiz = new Quiz({
       title: title.trim(),
-      teacherId,
+      teacherId: teacher.teacherId,
       teacherName: teacher.fullName,
       subject: teacher.subjectName,
       questions,
