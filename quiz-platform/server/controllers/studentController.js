@@ -2,27 +2,90 @@ const Student = require('../models/Student');
 const Result = require('../models/Result');
 const Quiz = require('../models/Quiz');
 
-// Register or login student by UID
-const loginStudent = async (req, res) => {
+const normalizeUid = (uid) => uid.trim().toUpperCase();
+
+const isValidUid = (uid) => /^[A-Z0-9_-]{3,40}$/.test(uid);
+
+const getFriendlyErrorMessage = (error) => {
+  if (/ETIMEDOUT|ENOTFOUND|ECONNREFUSED|MongoServerSelectionError/i.test(error.message)) {
+    return 'Database connection timed out. Please retry after the database is reachable.';
+  }
+  return error.message;
+};
+
+const registerStudent = async (req, res) => {
   try {
-    const { uid, name } = req.body;
-    if (!uid) return res.status(400).json({ success: false, message: 'UID is required' });
+    const rawUid = req.body.uid || '';
+    const rawName = req.body.name || '';
 
-    const uidUpper = uid.trim().toUpperCase();
-    const trimmedName = name ? name.trim() : '';
-    let student = await Student.findOne({ uid: uidUpper });
+    const uid = normalizeUid(rawUid);
+    const name = rawName.trim();
 
-    if (!student) {
-      student = new Student({ uid: uidUpper, name: trimmedName });
-      await student.save();
-    } else if (trimmedName && !student.name) {
-      student.name = trimmedName;
-      await student.save();
+    if (!uid || !name) {
+      return res.status(400).json({
+        success: false,
+        message: 'Student UID and name are required.',
+      });
     }
 
-    res.json({ success: true, data: student, message: 'Login successful' });
+    if (!isValidUid(uid)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Student UID must be 3-40 chars and can use A-Z, 0-9, underscore, hyphen.',
+      });
+    }
+
+    const existing = await Student.findOne({ uid });
+    if (existing) {
+      return res.status(409).json({
+        success: false,
+        message: 'Student UID already exists. Please sign in as existing student.',
+      });
+    }
+
+    const student = new Student({ uid, name });
+    await student.save();
+
+    return res.status(201).json({
+      success: true,
+      data: student.toObject(),
+      message: 'Student account created successfully',
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: 'Student UID already exists. Please sign in as existing student.',
+      });
+    }
+    return res.status(500).json({ success: false, message: getFriendlyErrorMessage(error) });
+  }
+};
+
+// Existing student login by UID only
+const loginStudent = async (req, res) => {
+  try {
+    const rawUid = req.body.uid || '';
+    const uid = normalizeUid(rawUid);
+
+    if (!uid) {
+      return res.status(400).json({
+        success: false,
+        message: 'Student UID is required for existing login.',
+      });
+    }
+
+    const student = await Student.findOne({ uid }).lean();
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: 'Student UID not found. If you are new, create account first.',
+      });
+    }
+
+    return res.json({ success: true, data: student, message: 'Login successful' });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: getFriendlyErrorMessage(error) });
   }
 };
 
@@ -83,7 +146,7 @@ const submitQuiz = async (req, res) => {
       isCorrect: evaluatedAnswers[idx].isCorrect,
     }));
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       data: { ...result.toObject(), detailedAnswers },
       message: 'Quiz submitted and evaluated!',
@@ -92,7 +155,7 @@ const submitQuiz = async (req, res) => {
     if (error.code === 11000) {
       return res.status(400).json({ success: false, message: 'You have already attempted this quiz' });
     }
-    res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ success: false, message: getFriendlyErrorMessage(error) });
   }
 };
 
@@ -101,9 +164,9 @@ const getStudentResults = async (req, res) => {
   try {
     const { uid } = req.params;
     const results = await Result.find({ studentUid: uid.toUpperCase() }).sort({ createdAt: -1 });
-    res.json({ success: true, data: results });
+    return res.json({ success: true, data: results });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ success: false, message: getFriendlyErrorMessage(error) });
   }
 };
 
@@ -128,10 +191,10 @@ const getQuizRankings = async (req, res) => {
         ? (results.reduce((sum, r) => sum + r.score, 0) / results.length).toFixed(1)
         : null;
 
-    res.json({ success: true, data: { rankings, avgScore, totalAttempts: results.length } });
+    return res.json({ success: true, data: { rankings, avgScore, totalAttempts: results.length } });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ success: false, message: getFriendlyErrorMessage(error) });
   }
 };
 
-module.exports = { loginStudent, submitQuiz, getStudentResults, getQuizRankings };
+module.exports = { registerStudent, loginStudent, submitQuiz, getStudentResults, getQuizRankings };

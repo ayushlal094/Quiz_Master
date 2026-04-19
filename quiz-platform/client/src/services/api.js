@@ -23,6 +23,7 @@ export const getQuizForTeacher = (quizId) => API.get(`/quizzes/${quizId}/teacher
 export const toggleQuizStatus = (quizId) => API.patch(`/quizzes/${quizId}/toggle`);
 
 // Student APIs
+export const registerStudent = (data) => API.post('/students/register', data);
 export const loginStudent = (data) => API.post('/students/login', data);
 export const getStudentResults = (uid) => API.get(`/students/${uid}/results`);
 
