@@ -70,6 +70,43 @@ const pickTeacherWithMostQuizzes = async (teachers) => {
   })[0];
 };
 
+const assignTeacherIdToIdentityGroup = async ({ teacherId, fullName, subjectName, identityKey, teachers }) => {
+  await setIdentityKeyOnTeachers(teachers, identityKey);
+  const targetTeacher = (await pickTeacherWithMostQuizzes(teachers)) || teachers[0];
+  const teacherIdsInGroup = teachers.map((teacher) => teacher.teacherId);
+
+  await Teacher.updateOne(
+    { _id: targetTeacher._id },
+    {
+      $set: {
+        teacherId,
+        fullName,
+        subjectName,
+        identityKey,
+      },
+    }
+  );
+
+  const otherTeacherIds = teachers
+    .filter((teacher) => String(teacher._id) !== String(targetTeacher._id))
+    .map((teacher) => teacher._id);
+
+  if (otherTeacherIds.length > 0) {
+    await Teacher.updateMany(
+      { _id: { $in: otherTeacherIds } },
+      { $set: { fullName, subjectName, identityKey } }
+    );
+  }
+
+  // Move all quizzes of duplicate/old IDs to the claimed teacher ID.
+  await Quiz.updateMany(
+    { teacherId: { $in: teacherIdsInGroup } },
+    { $set: { teacherId, teacherName: fullName, subject: subjectName } }
+  );
+
+  return Teacher.findById(targetTeacher._id).lean();
+};
+
 const getTeacherGroupFromSeed = async (teacher) => {
   const identityKey = teacher.identityKey || buildTeacherIdentityKey(teacher.fullName, teacher.subjectName);
   const matchingTeachers = await getTeachersByIdentity(identityKey, teacher.fullName, teacher.subjectName);
@@ -113,9 +150,18 @@ const registerTeacher = async (req, res) => {
     const identityKey = buildTeacherIdentityKey(fullName, subjectName);
     const existingByIdentity = await getTeachersByIdentity(identityKey, fullName, subjectName);
     if (existingByIdentity.length > 0) {
-      return res.status(409).json({
-        success: false,
-        message: `Account already exists for this name/subject. Use "Set Teacher ID" first. Current ID: ${existingByIdentity[0].teacherId}`,
+      const updatedTeacher = await assignTeacherIdToIdentityGroup({
+        teacherId,
+        fullName,
+        subjectName,
+        identityKey,
+        teachers: existingByIdentity,
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: updatedTeacher,
+        message: 'Existing account found. Teacher ID has been updated and you are signed in.',
       });
     }
 
@@ -184,39 +230,14 @@ const claimTeacherId = async (req, res) => {
       });
     }
 
-    await setIdentityKeyOnTeachers(matchingTeachers, identityKey);
-    const targetTeacher = (await pickTeacherWithMostQuizzes(matchingTeachers)) || matchingTeachers[0];
-    const teacherIdsInGroup = matchingTeachers.map((teacher) => teacher.teacherId);
+    const updatedTeacher = await assignTeacherIdToIdentityGroup({
+      teacherId,
+      fullName,
+      subjectName,
+      identityKey,
+      teachers: matchingTeachers,
+    });
 
-    await Teacher.updateOne(
-      { _id: targetTeacher._id },
-      {
-        $set: {
-          teacherId,
-          fullName,
-          subjectName,
-          identityKey,
-        },
-      }
-    );
-
-    const otherTeacherIds = matchingTeachers
-      .filter((teacher) => String(teacher._id) !== String(targetTeacher._id))
-      .map((teacher) => teacher._id);
-    if (otherTeacherIds.length > 0) {
-      await Teacher.updateMany(
-        { _id: { $in: otherTeacherIds } },
-        { $set: { fullName, subjectName, identityKey } }
-      );
-    }
-
-    // Move all quizzes of duplicate/old IDs to the claimed teacher ID.
-    await Quiz.updateMany(
-      { teacherId: { $in: teacherIdsInGroup } },
-      { $set: { teacherId, teacherName: fullName, subject: subjectName } }
-    );
-
-    const updatedTeacher = await Teacher.findById(targetTeacher._id).lean();
     return res.json({
       success: true,
       data: updatedTeacher,

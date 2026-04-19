@@ -177,11 +177,11 @@ cp .env.example .env
 Edit `.env`:
 ```env
 PORT=5000
-MONGODB_URI=mongodb://localhost:27017/quizplatform
+MONGO_URI=mongodb://localhost:27017/quizplatform
 ```
 
-> If using MongoDB Atlas, replace MONGODB_URI with your Atlas connection string:
-> `MONGODB_URI=mongodb+srv://<user>:<password>@cluster.mongodb.net/quizplatform`
+> If using MongoDB Atlas, replace MONGO_URI with your Atlas connection string:
+> `MONGO_URI=mongodb+srv://<user>:<password>@cluster.mongodb.net/quizplatform`
 
 Start the server:
 ```bash
@@ -240,7 +240,7 @@ npm start
 | Variable    | Default                                    | Description         |
 |-------------|--------------------------------------------|---------------------|
 | PORT        | 5000                                       | Server port         |
-| MONGODB_URI | mongodb://localhost:27017/quizplatform     | MongoDB connection  |
+| MONGO_URI   | mongodb://localhost:27017/quizplatform     | MongoDB connection  |
 
 For the client, create `client/.env`:
 ```env

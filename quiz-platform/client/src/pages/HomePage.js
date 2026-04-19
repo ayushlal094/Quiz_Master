@@ -16,7 +16,7 @@ const getRequestErrorMessage = (err, fallbackMessage) => {
   }
 
   if (err?.message && /ETIMEDOUT|ENOTFOUND|ECONNREFUSED|Network Error/i.test(err.message)) {
-    return 'Cannot reach backend/database. Start the server and verify MONGO_URI access.';
+    return 'Cannot reach backend/database. Start the server and verify Mongo URI in server/.env (MONGO_URI or MONGODB_URI).';
   }
 
   return fallbackMessage;
@@ -114,6 +114,26 @@ const HomePage = ({ onNavigate }) => {
       localStorage.setItem('lastTeacherId', res.data.data.teacherId || '');
       onNavigate('teacher-dashboard');
     } catch (err) {
+      const statusCode = err?.response?.status;
+      const apiMessage = err?.response?.data?.message || '';
+
+      // Backward-compatible fallback: older backend returns 409 and asks for "Set Teacher ID" first.
+      if (
+        statusCode === 409 &&
+        /account already exists for this name\/subject|set teacher id first/i.test(apiMessage)
+      ) {
+        try {
+          const claimRes = await claimTeacherId({ teacherId, fullName, subjectName });
+          loginAsTeacher(claimRes.data.data);
+          localStorage.setItem('lastTeacherId', claimRes.data.data.teacherId || '');
+          onNavigate('teacher-dashboard');
+          return;
+        } catch (claimErr) {
+          setError(getRequestErrorMessage(claimErr, 'Could not auto-claim Teacher ID. Please try again.'));
+          return;
+        }
+      }
+
       setError(getRequestErrorMessage(err, 'Teacher registration failed. Please try again.'));
     } finally {
       setLoading(false);
