@@ -1,8 +1,9 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
-const connectDB = require('./config/db');
+const { connectDB, waitForDbReady, resolveMongoUri } = require('./config/db');
 
 const teacherRoutes = require('./routes/teacherRoutes');
 const quizRoutes = require('./routes/quizRoutes');
@@ -27,13 +28,23 @@ app.get('/api/health', (req, res) => {
 });
 
 // Fast-fail requests when DB is unavailable instead of hanging
-app.use('/api', (req, res, next) => {
+app.use('/api', async (req, res, next) => {
   if (mongoose.connection.readyState !== 1) {
-    return res.status(503).json({
-      success: false,
-      message: 'Database unavailable right now. Please try again in a few seconds.',
-    });
+    const isReady = await waitForDbReady();
+
+    if (!isReady) {
+      const hasMongoUri = Boolean(resolveMongoUri());
+      const hint = hasMongoUri
+        ? 'Verify MongoDB is running and reachable from this machine.'
+        : 'Set MONGO_URI (or MONGODB_URI) in server/.env.';
+
+      return res.status(503).json({
+        success: false,
+        message: `Database unavailable right now. ${hint}`,
+      });
+    }
   }
+
   next();
 });
 
@@ -54,13 +65,17 @@ const PORT = process.env.PORT || 5000;
 const startServer = async () => {
   try {
     await connectDB();
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-    });
   } catch (error) {
-    console.error('Failed to start server:', error.message);
-    process.exit(1);
+    console.error(
+      `Initial MongoDB connection failed. Server starting in degraded mode: ${error.message}`
+    );
   }
+
+  app.listen(PORT, () => {
+    const dbState = mongoose.connection.readyState;
+    const dbStatus = dbState === 1 ? 'connected' : 'disconnected';
+    console.log(`Server running on port ${PORT} (database: ${dbStatus})`);
+  });
 };
 
 startServer();
