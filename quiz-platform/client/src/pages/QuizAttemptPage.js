@@ -183,7 +183,7 @@ const QuizAttemptPage = ({ quizId, onBack }) => {
 
   const handleTimerExpire = useCallback(() => {
     handleSubmit(true);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  
   }, [answers]);
 
   const handleSelect = (qIdx, oIdx) => {
