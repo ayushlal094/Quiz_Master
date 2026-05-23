@@ -244,7 +244,7 @@ npm start
 
 For the client, create `client/.env`:
 ```env
-REACT_APP_API_URL=http://localhost:5000/api
+REACT_APP_API_URL=https://quiz-master-1hzo.onrender.com/api
 ```
 (Not required if using the default proxy setting in package.json)
 

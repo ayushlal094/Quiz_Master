@@ -3,7 +3,7 @@ import axios from 'axios';
 const API_TIMEOUT_MS = parseInt(process.env.REACT_APP_API_TIMEOUT_MS || '10000', 10);
 
 const API = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000/api',
+  baseURL: process.env.REACT_APP_API_URL || 'https://quiz-master-1hzo.onrender.com/api',
   headers: { 'Content-Type': 'application/json' },
   timeout: API_TIMEOUT_MS,
 });
